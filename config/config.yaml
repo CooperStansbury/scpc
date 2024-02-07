@@ -1,0 +1,13 @@
+output_path: "/scratch/indikar_root/indikar1/cstansbu/scpc_test/"
+ref_paths: "config/reference_paths.txt"
+fastq_paths: "config/fastq_paths.txt"
+snps_paths: "config/snps_paths.txt"
+gtf_paths: "config/gtf_paths.txt"
+cast_vcf_path: "/nfs/turbo/umms-indikar/shared/projects/poreC/data/VCFs/CAST_EiJ.vcf.gz"
+S129_vcf_path: "/nfs/turbo/umms-indikar/shared/projects/poreC/data/VCFs/CAST_EiJ.vcf.gz"
+chromosome_list: "config/chromList.txt"
+enzyme: 'NlaIII'
+indexer: "minimap2 -d"
+minimap_args : "-ax map-ont -e 250 -w 5"
+threads: 36
+mapq_threshold: 20
