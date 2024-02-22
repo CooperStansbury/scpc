@@ -15,13 +15,13 @@ rule make_chromsizes:
     input:
         OUTPUT + 'references/{rid}.fa',
     output:
-        OUTPUT + 'references/{rid}.chrom.sizes'
+        OUTPUT + 'reports/chromsizes/{rid}.chrom.sizes'
     wildcard_constraints:
         rid='|'.join([re.escape(x) for x in set(ref_ids)]),
     shell:
-        "samtools faidx {input} | cut -f1,2 > {output}"
-        
-        
+        "faidx {input} -i chromsizes > {output}"
+
+ 
 rule minimap2_index:
     input:
         refgenome=OUTPUT + 'references/{rid}.fa'
@@ -35,28 +35,13 @@ rule minimap2_index:
         "minimap2 -t {threads} -d {output} {input.refgenome}"
 
 
-rule copy_snps:
+rule bwa_index:
     input:
-        snp_df['file_path'].to_list()
+        refgenome=OUTPUT + 'references/{rid}.fa'
     output:
-        snp_df['out_path'].to_list(),
-    run:
-        from shutil import copyfile
-        for i, fpath in enumerate(input):
-    
-            outPath = output[i]
-            copyfile(fpath, outPath)
-
-
-rule index_vcf:
-    input:
-        OUTPUT + 'snps/{sid}.vcf.gz'
-    output: 
-        OUTPUT + 'snps/{sid}.vcf.gz.tbi'
-    wildcard_constraints:
-        sid='|'.join([re.escape(x) for x in set(snp_ids)]),
+        OUTPUT + 'references/{rid}.bwt'
     shell:
-        "tabix -fp vcf {input}"
+        "bwa index {input}"
 
 
 rule copy_gtfs:
@@ -70,3 +55,22 @@ rule copy_gtfs:
     
             outPath = output[i]
             copyfile(fpath, outPath)
+
+
+# # custom rule for adding a masked references
+# rule mask_reference:
+#     input:
+#         ref=OUTPUT + 'references/GRCm39.fa',
+#         vcf=OUTPUT + 'vcf/{sid}.vcf.gz',
+#         vcfindex=OUTPUT + 'vcf/{sid}.vcf.gz.tbi',
+#     output:
+#         OUTPUT + 'references/GRCm39masked.fa'    
+#     wildcard_constraints:
+#         sid='|'.join([re.escape(x) for x in set(snp_ids)]),
+#     shell:
+#         """bedtools maskfasta -fi {input.ref} \
+#         -bed {input.vcf} \
+#         -fo {output}
+#         """
+# 
+# ref_ids.append("GRCm39masked")

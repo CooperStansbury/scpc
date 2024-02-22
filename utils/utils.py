@@ -36,7 +36,7 @@ def load_ref_df(ref_paths, output_path,
 
 
 def load_snp_df(snp_paths, output_path,
-                output_subdir="snps/", ext=".vcf.gz"):
+                output_subdir="vcf/", ext=".vcf.gz"):
     """A function to load the VCFs to a 
     dataframe """
     snp_df = pd.read_csv(snp_paths, comment="#")

@@ -62,6 +62,8 @@ print(tabulate(gtf_df[['gtf_id', 'basename']],
 
 ################ RULE FILES ################
 include: "rules/references.smk"
+include: "rules/mapping.smk"
+include: "rules/haplotyping.smk"
 
   
 ################ ALL RULES ################
@@ -69,179 +71,71 @@ rule all:
     input:
         expand(f"{OUTPUT}fastq/{{cid}}.fastq", cid=cell_ids),
         OUTPUT + 'reports/seqkit/raw.fastq.report.txt',
+        OUTPUT + 'reports/seqkit/digested.fastq.report.txt',
         expand(f"{OUTPUT}references/{{rid}}.mmi", rid=ref_ids),
-        expand(f"{OUTPUT}references/{{rid}}.chrom.sizes", rid=ref_ids),
-        expand(f"{OUTPUT}snps/{{sid}}.vcf.gz.tbi", sid=snp_ids),
+        expand(f"{OUTPUT}references/{{rid}}.bwt", rid=ref_ids),
+        expand(f"{OUTPUT}reports/chromsizes/{{rid}}.chrom.sizes", rid=ref_ids),
         expand(f"{OUTPUT}gtf/{{gid}}.gtf.gz", gid=gtf_ids),
         expand(f"{OUTPUT}digested_fastq/{{cid}}.fastq", cid=cell_ids),
+        expand(f"{OUTPUT}restriction_sites/{{cid}}.sites.pq", cid=cell_ids),
+        expand(f"{OUTPUT}merged_bam/{{cid}}.{{rid}}.bam.bai", cid=cell_ids, rid=ref_ids),
+        expand(f"{OUTPUT}reports/coverage/{{cid}}.{{rid}}.{{dig}}.samtools.coverage.txt", cid=cell_ids, rid=ref_ids, dig=['full', 'digested']),
+        expand(f"{OUTPUT}reports/coverage_by_cell/{{cid}}.{{rid}}.samtools.coverage.txt", cid=cell_ids, rid=ref_ids),
+        expand(f"{OUTPUT}reports/flagstat/{{cid}}.{{rid}}.flagstat.tsv", cid=cell_ids, rid=ref_ids),
+        expand(f"{OUTPUT}reports/coverage_by_reference/{{rid}}.samtools.coverage.txt", rid=ref_ids),
+        expand(f"{OUTPUT}align_table/{{cid}}.{{rid}}.alignments.pq", cid=cell_ids, rid=ref_ids),
+        expand(f"{OUTPUT}vcf/{{sid}}.vcf.gz.tbi", sid=snp_ids),
+        expand(f"{OUTPUT}duplicates/{{cid}}.{{rid}}.bam", cid=cell_ids, rid=ref_ids),
+        expand(f"{OUTPUT}vcf/{{sid}}.snps.tsv", sid=snp_ids),
+        expand(f"{OUTPUT}whatshap/{{sid}}.GRCm39.phased.vcf.gz", sid=snp_ids),
+        expand(f"{OUTPUT}reports/whatshap/{{sid}}.vcf.stats.txt", sid=snp_ids),
 
-        # OUTPUT + 'reports/samtools.alignment.coverage.txt',
-        # expand(f"{OUTPUT}reports/flagstat/{{cid}}.flagstat.tsv", cid=cell_ids),
-        # expand(f"{OUTPUT}sites/{{cid}}.cut.sites.pq", cid=cell_ids),
-        # expand(f"{OUTPUT}bam/{{cid}}.bam.bai", cid=cell_ids),
-        # expand(f"{OUTPUT}reports/samtools_coverage/{{cid}}.txt", cid=cell_ids),
-        # expand(f"{OUTPUT}align_table/{{cid}}.alignments.pq", cid=cell_ids),
-        # expand(f"{OUTPUT}concatemers/{{cid}}.concatemers.pq", cid=cell_ids),
-        # expand(f"{OUTPUT}haplotypes/{{cid}}.txt", cid=cell_ids),
-        # OUTPUT + "reports/seqkit.filtered.fastq.report.txt",
-        # expand(f"{OUTPUT}filtered_fastq/{{cid}}.fastq", cid=cell_ids),
-
-
-rule copy_fastq:
-    input:
-        fastq_df['file_path'].to_list()
-    output:
-        fastq_df['out_path'].to_list(),
-    run:
-        from shutil import copyfile
-        for i, fpath in enumerate(input):
     
-            outPath = output[i]
-            copyfile(fpath, outPath)
+    
 
 
-rule raw_fastq_report:
+rule haplotagging:
     input:
-        expand(f"{OUTPUT}fastq/{{cid}}.fastq", cid=cell_ids),
-    output:
-        OUTPUT + "reports/seqkit/raw.fastq.report.txt",
-    wildcard_constraints:
-        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-    threads:
-        config['threads'] // 4
-    shell:
-        """seqkit stats -a -b -j {threads} {input} -o {output}"""
+        expand(f"{OUTPUT}whatshap/{{sid}}.GRCm39.phased.vcf.gz", sid=snp_ids),
+        expand(f"{OUTPUT}vcf/{{sid}}.snps.tsv", sid=snp_ids),
+        expand(f"{OUTPUT}vcf/{{sid}}.gatk.table.tsv", sid=snp_ids),
+        expand(f"{OUTPUT}snp_positions/{{cid}}.{{rid}}.{{sid}}.snps.pq", cid=cell_ids, rid=ref_ids, sid=snp_ids),
+        expand(f"{OUTPUT}hapcut/GRCm39.{{sid}}.merged.fragments", sid=snp_ids),
+        expand(f"{OUTPUT}whatshap/{{sid}}.phased.vcf.gz", sid=snp_ids),
+        expand(f"{OUTPUT}reports/whatshap_phase/{{sid}}.phase_stats.txt", sid=snp_ids),
+        expand(f"{OUTPUT}whatshap/{{sid}}.{{rid}}.{{sid}}.haplotaged.txt", cid=cell_ids, rid=ref_ids, sid=snp_ids),
+        expand(f"{OUTPUT}hapcut/{{cid}}.GRCm39.{{sid}}.fragments", cid=cell_ids, sid=snp_ids),
+        expand(f"{OUTPUT}hapcut/GRCm39.{{sid}}.phased.VCF", sid=snp_ids),
 
-
-rule digest_fastq:
-    input:
-        fastq=OUTPUT + "fastq/{cid}.fastq",
-    output:
-        fastq=OUTPUT + "digested_fastq/{cid}.fastq",
-        report=OUTPUT + "reports/digest/{cid}.sites.pq",
-    wildcard_constraints:
-        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-    params:
-        cutter=config['enzyme'],
-    shell:
-        """python scripts/digest.py {input} {params.cutter} \
-        {output.fastq} {output.report}"""
-
-
-rule find_sites:
-    input:
-        fastq=OUTPUT + "fastq/{cid}.fastq"
-    output:
-        sites=OUTPUT + "sites/{cid}.cut.sites.pq",
-        ligated_reads=OUTPUT + "sites/{cid}.ligated.reads.txt",
-    wildcard_constraints:
-        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-    params:
-        cutter=config['cutter'],
-    shell:
-        """python scripts/get_cut_sites.py {input.fastq} \
-           {params.cutter} {output.sites} {output.ligated_reads}"""
-
-
-rule filter_fastq:
-    input:
-        fastq=OUTPUT + "fastq/{cid}.fastq",
-        ids=OUTPUT + "sites/{cid}.ligated.reads.txt",
-    output:
-        OUTPUT + "filtered_fastq/{cid}.fastq"
-    wildcard_constraints:
-        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-    threads:
-        config['threads'] // 4
-    shell:
-        """seqkit grep -f {input.ids} -j {threads} -o {output} {input.fastq}"""
-
-
-rule filtered_fastq_report:
-    input:
-        expand(f"{OUTPUT}filtered_fastq/{{cid}}.fastq", cid=cell_ids),
-    output:
-        OUTPUT + "reports/seqkit.filtered.fastq.report.txt",
-    wildcard_constraints:
-        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-    threads:
-        config['threads'] // 4
-    shell:
-        """seqkit stats -a -b -j {threads} {input} -o {output}"""
-
-
-rule minimap_align:
-    input:
-        fastq=OUTPUT + "fastq/{cid}.fastq",
-        ref=OUTPUT + 'references/reference.fa',
-    output:
-        OUTPUT + 'bam/{cid}.bam'
-    threads:
-        config['threads'] // 2
-    params:
-        args=config['minimap_args']
-    wildcard_constraints:
-        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-    shell:
-        """minimap2 {params.args} -t {threads} {input.ref} {input.fastq} \
-        | samtools sort -O bam -o {output}"""
-
-
-rule samtools_index:
-    input:
-        OUTPUT + 'bam/{cid}.bam'
-    output:
-        OUTPUT + 'bam/{cid}.bam.bai'
-    threads:
-        config['threads'] // 2
-    shell:
-        "samtools index -@ {threads} {input}"
-
-
-rule samtool_flagstat:
-    input:
-        bam=OUTPUT + 'bam/{cid}.bam',
-    output:
-        OUTPUT + 'reports/flagstat/{cid}.flagstat.tsv'
-    wildcard_constraints:
-        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-    threads:
-        config['threads'] // 4 
-    shell:
-        """samtools flagstat -@ {threads} -O 'tsv' {input.bam} > {output}"""
-
-
-rule samtools_coverage:
-    input:
-        bam=OUTPUT + 'bam/{cid}.bam',
-    output:
-        OUTPUT + "reports/samtools_coverage/{cid}.txt"
-    wildcard_constraints:
-        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-    shell:
-        """samtools coverage {input} > {output}"""
-
-
-rule all_coverage:
-    input:
-        expand(f"{OUTPUT}bam/{{cid}}.bam", cid=cell_ids),
-    output:
-        OUTPUT + "reports/samtools.alignment.coverage.txt"
-    wildcard_constraints:
-        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-    shell:
-        """samtools coverage {input} > {output}"""
 
 
 rule make_alignment_table:
     input:
-        bam=OUTPUT + 'bam/{cid}.bam',
+        bam=OUTPUT + 'merged_bam/{cid}.{rid}.bam',
+        frags=OUTPUT + 'restriction_sites/{cid}.sites.pq',
     output:
-        OUTPUT + "align_table/{cid}.alignments.pq"
+        OUTPUT + "align_table/{cid}.{rid}.alignments.pq"
     wildcard_constraints:
         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
+        rid='|'.join([re.escape(x) for x in set(ref_ids)]),
     shell:
-        """python scripts/get_alignment_table.py {input} {output}"""
+        """python scripts/get_alignment_table.py {input.bam} {input.frags} {output}"""
+
+
+rule report_snps:
+    input:
+        bam=OUTPUT + 'merged_bam/{cid}.{rid}.bam',
+        vcf=OUTPUT + 'vcf/{sid}.vcf.gz',
+        vcf_idx=OUTPUT + 'vcf/{sid}.vcf.gz.tbi',
+        sites=OUTPUT + "restriction_sites/{cid}.sites.pq",
+    output:
+        OUTPUT + "snp_positions/{cid}.{rid}.{sid}.snps.pq"
+    wildcard_constraints:
+        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
+        sid='|'.join([re.escape(x) for x in set(snp_ids)]),
+        rid='|'.join([re.escape(x) for x in set(ref_ids)]),
+    shell:
+        """python scripts/get_snp_positions.py {input.vcf} {input.bam} {input.sites} {output}"""
 
 
 rule get_concatemers:
