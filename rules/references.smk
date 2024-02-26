@@ -35,13 +35,13 @@ rule minimap2_index:
         "minimap2 -t {threads} -d {output} {input.refgenome}"
 
 
-rule bwa_index:
-    input:
-        refgenome=OUTPUT + 'references/{rid}.fa'
-    output:
-        OUTPUT + 'references/{rid}.bwt'
-    shell:
-        "bwa index {input}"
+# rule bwa_index:
+#     input:
+#         refgenome=OUTPUT + 'references/{rid}.fa'
+#     output:
+#         OUTPUT + 'references/{rid}.bwt'
+#     shell:
+#         "bwa index {input}"
 
 
 rule copy_gtfs:

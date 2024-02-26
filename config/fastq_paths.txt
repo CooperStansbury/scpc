@@ -1,4 +1,4 @@
 cell_id,file_path
-b01,/nfs/turbo/umms-indikar/shared/projects/poreC/data/fastq/p2/2023-12-15-scPC96o_1/merged_fastq/barcode01.fastq
-b11,/nfs/turbo/umms-indikar/shared/projects/poreC/data/fastq/p2/2023-12-15-scPC96o_1/merged_fastq/barcode11.fastq
+b01,/nfs/turbo/umms-indikar/shared/projects/poreC/data/fastq/p2/scPC96o_3/merged_fastq/barcode01.fastq
+# b11,/nfs/turbo/umms-indikar/shared/projects/poreC/data/fastq/p2/2023-12-15-scPC96o_1/merged_fastq/barcode11.fastq
 # b94,/nfs/turbo/umms-indikar/shared/projects/poreC/data/fastq/p2/2023-12-15-scPC96o_1/merged_fastq/barcode94.fastq

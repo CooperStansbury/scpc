@@ -3,11 +3,25 @@ import os
 from pathlib import Path
 
 
+def load_pod5_df(pod5_paths, output_path, 
+                  output_subdir="pod5/",
+                  ext=".pod5"):
+    """A function to load the fastq output df from a 
+    file """
+    pod5_df = pd.read_csv(pod5_paths, comment="#")
+    pod5_df['basename'] = pod5_df['file_path'].apply(lambda x: x.split("/")[-1])
+    pod5_df['ext'] = ext
+    pod5_df['out_dir'] = output_path
+    pod5_df['sub_dir'] = output_subdir
+    pod5_df['out_path'] = pod5_df['out_dir'] + pod5_df['sub_dir'] \
+                        + pod5_df['cell_id'] + pod5_df['ext']
+    return pod5_df
+
         
     
 def load_fastq_df(fastq_paths, output_path, 
                   output_subdir="fastq/",
-                  ext=".fastq"):
+                  ext=".raw.fastq"):
     """A function to load the fastq output df from a 
     file """
     fastq_df = pd.read_csv(fastq_paths, comment="#")

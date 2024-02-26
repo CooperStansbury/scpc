@@ -45,6 +45,26 @@ rule to_variants_table:
         '%CHROM\t%POS\t%REF\t%ALT[\t%SAMPLE=%GT]\n' {input.vcf} > {output}"""
 
 
+rule nanopolish_phase:
+    input:
+        bam=OUTPUT + 'minimap2/{cid}.GRCm39.raw.bam',
+        bamindex=OUTPUT + 'minimap2/{cid}.GRCm39.raw.bam.bai',
+        fastq=OUTPUT + 'fastq/{cid}.raw.fastq',
+        ref=OUTPUT + 'references/GRCm39.fa',
+        vcf=OUTPUT + 'vcf/{sid}.vcf.gz',
+        vcfindex=OUTPUT + 'vcf/{sid}.vcf.gz.tbi',
+    output:
+        OUTPUT + 'nanopolish/{cid}.{sid}.raw.phased.bam'
+    wildcard_constraints:
+        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
+        sid='|'.join([re.escape(x) for x in set(snp_ids)]),
+        rid='|'.join([re.escape(x) for x in set(ref_ids)]),
+    threads:
+        config['threads'] // 4
+    shell:
+        """nanopolish phase-reads --threads {threads} --reads {input.fastq} --bam {input.bam} --genome {input.ref} {input.vcf} > {output}"""
+
+
 
 rule gatk_VariantsToTable:
     input:

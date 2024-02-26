@@ -13,15 +13,17 @@ configfile: str(BASE_DIR) + "/config/config.yaml"
 OUTPUT = config['output_path']
 
 # load the basecalls
-fastq_paths = os.path.abspath(config['fastq_paths'])
-fastq_df = utils.load_fastq_df(fastq_paths, OUTPUT)
-cell_ids = fastq_df['cell_id'].to_list() # wildcard constraints
+pod5_paths = os.path.abspath(config['pod5_paths'])
+pod5_df = utils.load_pod5_df(pod5_paths, OUTPUT)
+cell_ids = pod5_df['cell_id'].to_list() # wildcard constraints
 
 print(f"\n======== INPUT FILES ========")
-print(tabulate(fastq_df[['cell_id', 'basename']], 
+print(tabulate(pod5_df[['cell_id', 'basename']], 
       headers='keys',
       showindex=False,
       tablefmt='psql'))
+
+print(pod5_df['out_path'].values)
 
 # build the references
 ref_paths = os.path.abspath(config['ref_paths'])
@@ -59,8 +61,8 @@ print(tabulate(gtf_df[['gtf_id', 'basename']],
       tablefmt='psql'))
 
 
-
 ################ RULE FILES ################
+include: "rules/basecalling.smk"
 include: "rules/references.smk"
 include: "rules/mapping.smk"
 include: "rules/haplotyping.smk"
@@ -69,29 +71,32 @@ include: "rules/haplotyping.smk"
 ################ ALL RULES ################
 rule all:
     input:
-        expand(f"{OUTPUT}fastq/{{cid}}.fastq", cid=cell_ids),
-        OUTPUT + 'reports/seqkit/raw.fastq.report.txt',
-        OUTPUT + 'reports/seqkit/digested.fastq.report.txt',
-        expand(f"{OUTPUT}references/{{rid}}.mmi", rid=ref_ids),
-        expand(f"{OUTPUT}references/{{rid}}.bwt", rid=ref_ids),
-        expand(f"{OUTPUT}reports/chromsizes/{{rid}}.chrom.sizes", rid=ref_ids),
         expand(f"{OUTPUT}gtf/{{gid}}.gtf.gz", gid=gtf_ids),
-        expand(f"{OUTPUT}digested_fastq/{{cid}}.fastq", cid=cell_ids),
+        expand(f"{OUTPUT}references/{{rid}}.mmi", rid=ref_ids),
+        expand(f"{OUTPUT}pod5/{{cid}}.pod5", cid=cell_ids),
+        expand(f"{OUTPUT}fast5/{{cid}}.fast5", cid=cell_ids),
+        expand(f"{OUTPUT}fastq/{{cid}}.raw.fastq", cid=cell_ids),
+        expand(f"{OUTPUT}fastq/{{cid}}.raw.fastq.index", cid=cell_ids),
+        expand(f"{OUTPUT}fastq/{{cid}}.digested.fastq", cid=cell_ids),
+        expand(f"{OUTPUT}reports/seqkit/{{cond}}.fastq.report.txt", cond=['raw', 'digested']),
+        expand(f"{OUTPUT}reports/chromsizes/{{rid}}.chrom.sizes", rid=ref_ids),
         expand(f"{OUTPUT}restriction_sites/{{cid}}.sites.pq", cid=cell_ids),
+        expand(f"{OUTPUT}minimap2/{{cid}}.{{rid}}.{{cond}}.bam", cid=cell_ids, rid=ref_ids, cond=['raw', 'digested']),
         expand(f"{OUTPUT}merged_bam/{{cid}}.{{rid}}.bam.bai", cid=cell_ids, rid=ref_ids),
-        expand(f"{OUTPUT}reports/coverage/{{cid}}.{{rid}}.{{dig}}.samtools.coverage.txt", cid=cell_ids, rid=ref_ids, dig=['full', 'digested']),
+        expand(f"{OUTPUT}reports/coverage/{{cid}}.{{rid}}.{{dig}}.samtools.coverage.txt", cid=cell_ids, rid=ref_ids, dig=['raw', 'digested']),
         expand(f"{OUTPUT}reports/coverage_by_cell/{{cid}}.{{rid}}.samtools.coverage.txt", cid=cell_ids, rid=ref_ids),
         expand(f"{OUTPUT}reports/flagstat/{{cid}}.{{rid}}.flagstat.tsv", cid=cell_ids, rid=ref_ids),
         expand(f"{OUTPUT}reports/coverage_by_reference/{{rid}}.samtools.coverage.txt", rid=ref_ids),
-        expand(f"{OUTPUT}align_table/{{cid}}.{{rid}}.alignments.pq", cid=cell_ids, rid=ref_ids),
-        expand(f"{OUTPUT}vcf/{{sid}}.vcf.gz.tbi", sid=snp_ids),
+        expand(f"{OUTPUT}reports/stats/{{cid}}.{{rid}}.samtools.stats.txt", cid=cell_ids, rid=ref_ids),
         expand(f"{OUTPUT}duplicates/{{cid}}.{{rid}}.bam", cid=cell_ids, rid=ref_ids),
-        expand(f"{OUTPUT}vcf/{{sid}}.snps.tsv", sid=snp_ids),
-        expand(f"{OUTPUT}whatshap/{{sid}}.GRCm39.phased.vcf.gz", sid=snp_ids),
-        expand(f"{OUTPUT}reports/whatshap/{{sid}}.vcf.stats.txt", sid=snp_ids),
+        expand(f"{OUTPUT}nanopolish/{{cid}}.{{sid}}.raw.phased.bam", cid=cell_ids, sid=snp_ids),
+    
+        # expand(f"{OUTPUT}vcf/{{sid}}.vcf.gz.tbi", sid=snp_ids),
+        # expand(f"{OUTPUT}vcf/{{sid}}.snps.tsv", sid=snp_ids),
+        # expand(f"{OUTPUT}align_table/{{cid}}.{{rid}}.alignments.pq", cid=cell_ids, rid=ref_ids),
 
-    
-    
+
+
 
 
 rule haplotagging:
@@ -106,6 +111,8 @@ rule haplotagging:
         expand(f"{OUTPUT}whatshap/{{sid}}.{{rid}}.{{sid}}.haplotaged.txt", cid=cell_ids, rid=ref_ids, sid=snp_ids),
         expand(f"{OUTPUT}hapcut/{{cid}}.GRCm39.{{sid}}.fragments", cid=cell_ids, sid=snp_ids),
         expand(f"{OUTPUT}hapcut/GRCm39.{{sid}}.phased.VCF", sid=snp_ids),
+        expand(f"{OUTPUT}whatshap/{{sid}}.GRCm39.phased.vcf.gz", sid=snp_ids),
+        expand(f"{OUTPUT}reports/whatshap/{{sid}}.vcf.stats.txt", sid=snp_ids),
 
 
 
