@@ -45,7 +45,134 @@ rule to_variants_table:
         '%CHROM\t%POS\t%REF\t%ALT[\t%SAMPLE=%GT]\n' {input.vcf} > {output}"""
 
 
-rule nanopolish_phase:
+rule phase_vcf_longread:
+    input:
+        bam=expand(OUTPUT + 'merged_bam/{cid}.GRCm39.bam', cid=cell_ids,),
+        bamindex=expand(OUTPUT + 'merged_bam/{cid}.GRCm39.bam.bai', cid=cell_ids,),
+        ref=OUTPUT + 'references/GRCm39.fa',
+        vcf=OUTPUT + 'vcf/{sid}.vcf.gz',
+        vcfindex=OUTPUT + 'vcf/{sid}.vcf.gz.tbi',
+    output:
+        vcf=OUTPUT + "vcf/{sid}.phased.vcf",
+    wildcard_constraints:
+        sid='|'.join([re.escape(x) for x in set(snp_ids)]),
+    threads:
+        config['threads'] 
+    params:
+        longread=config['longread_path'],
+        prefix=lambda wildcards: OUTPUT + "vcf/" + wildcards.sid + ".phased"
+    shell:
+        """{params.longread} phase -s {input.vcf} -b {input.bam} -r {input.ref} -t {threads} -o {params.prefix} --ont"""
+
+
+rule longread_haplotag:
+    input:
+        bam=OUTPUT + 'merged_bam/{cid}.GRCm39.bam',
+        bamindex=OUTPUT + 'merged_bam/{cid}.GRCm39.bam.bai',
+        ref=OUTPUT + 'references/GRCm39.fa',
+        vcf=OUTPUT + 'vcf/{sid}.phased.vcf',
+    output:
+        bam=OUTPUT + "longread/{cid}.{sid}.phased.bam",
+    wildcard_constraints:
+        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
+        sid='|'.join([re.escape(x) for x in set(snp_ids)]),
+    threads:
+        config['threads'] // 4
+    params:
+        longread=config['longread_path'],
+        prefix=lambda wildcards: OUTPUT + "longread/" + wildcards.cid + "." + wildcards.sid + ".phased"
+    shell:
+        """{params.longread} haplotag -r {input.ref} -s {input.vcf} -b {input.bam} -t {threads} -o {params.prefix} --log"""
+
+
+rule gatk_VariantsToTable:
+    input:
+        vcf=OUTPUT + 'vcf/{sid}.vcf.gz',
+        vcfindex=OUTPUT + 'vcf/{sid}.vcf.gz.tbi',
+    output:
+        OUTPUT + 'vcf/{sid}.gatk.table.tsv'
+    wildcard_constraints:
+        sid='|'.join([re.escape(x) for x in set(snp_ids)]),
+    shell:
+        """gatk VariantsToTable \
+         -V {input.vcf} \
+         -F CHROM -F POS -F REF -F ALT -GF GT -GF AD -GF DP -GF GQ -GF PL \
+         -O {output}"""
+
+
+rule whatshap_stats_CAST_EiJ:
+    input:
+        vcf=OUTPUT + 'vcf/{sid}.vcf.gz',
+        vcfindex=OUTPUT + 'vcf/{sid}.vcf.gz.tbi',
+    output:
+        OUTPUT + "reports/whatshap/{sid}.CAST_EiJ.stats.txt"
+    wildcard_constraints:
+        sid='|'.join([re.escape(x) for x in set(snp_ids)]),
+    shell:
+        """whatshap stats \
+        --sample CAST_EiJ \
+        {input.vcf} > {output}"""
+
+
+rule whatshap_stats_129S1_SvImJ:
+    input:
+        vcf=OUTPUT + 'vcf/{sid}.vcf.gz',
+        vcfindex=OUTPUT + 'vcf/{sid}.vcf.gz.tbi',
+    output:
+        OUTPUT + "reports/whatshap/{sid}.129S1_SvImJ.stats.txt"
+    wildcard_constraints:
+        sid='|'.join([re.escape(x) for x in set(snp_ids)]),
+    shell:
+        """whatshap stats \
+        --sample 129S1_SvImJ \
+        {input.vcf} > {output}"""
+
+
+rule whatshap_stats_phased_CAST_EiJ:
+    input:
+        vcf=OUTPUT + 'vcf/{sid}.phased.vcf',
+    output:
+        OUTPUT + "reports/whatshap/{sid}.CAST_EiJ.phased.stats.txt"
+    wildcard_constraints:
+        sid='|'.join([re.escape(x) for x in set(snp_ids)]),
+    shell:
+        """whatshap stats \
+        --sample CAST_EiJ \
+        {input.vcf} > {output}"""
+
+
+rule whatshap_stats_phased_129S1_SvImJ:
+    input:
+        vcf=OUTPUT + 'vcf/{sid}.phased.vcf',
+    output:
+        OUTPUT + "reports/whatshap/{sid}.129S1_SvImJ.phased.stats.txt"
+    wildcard_constraints:
+        sid='|'.join([re.escape(x) for x in set(snp_ids)]),
+    shell:
+        """whatshap stats \
+        --sample 129S1_SvImJ \
+        {input.vcf} > {output}"""
+
+
+rule whatshap_haplotyping:
+    input:
+        bams=expand(OUTPUT + 'merged_bam/{cid}.GRCm39.bam', cid=cell_ids),
+        vcf=OUTPUT + 'vcf/{sid}.phased.vcf.gz',
+        ref=OUTPUT + 'references/GRCm39.fa'
+    output:
+        OUTPUT + 'whatshap/{cid}.{sid}.haplotaged.txt'
+    wildcard_constraints:
+        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
+        sid='|'.join([re.escape(x) for x in set(snp_ids)]),
+    threads:
+        config['threads'] // 2
+    shell:
+         """whatshap haplotag {input.vcf} {input.bam} \
+         --skip-missing-contigs --tag-supplementary --ignore-read-groups -r {input.ref} \
+         --output-threads={threads} --output-haplotag-list  {output}  -o /dev/null"""
+
+
+rule nanopolish_phase_reads:
     input:
         bam=OUTPUT + 'minimap2/{cid}.GRCm39.raw.bam',
         bamindex=OUTPUT + 'minimap2/{cid}.GRCm39.raw.bam.bai',
@@ -66,56 +193,27 @@ rule nanopolish_phase:
 
 
 
-rule gatk_VariantsToTable:
-    input:
-        vcf=OUTPUT + 'vcf/{sid}.vcf.gz',
-        vcfindex=OUTPUT + 'vcf/{sid}.vcf.gz.tbi',
-    output:
-        OUTPUT + 'vcf/{sid}.gatk.table.tsv'
-    wildcard_constraints:
-        sid='|'.join([re.escape(x) for x in set(snp_ids)]),
-    shell:
-        """gatk VariantsToTable \
-         -V {input.vcf} \
-         -F CHROM -F POS -F REF -F ALT -GF GT -GF AD -GF DP -GF GQ -GF PL \
-         -O {output}"""
 
-
-rule whatshap_stats:
-    input:
-        vcf=OUTPUT + 'vcf/{sid}.vcf.gz',
-        vcfindex=OUTPUT + 'vcf/{sid}.vcf.gz.tbi',
-    output:
-        OUTPUT + "reports/whatshap/{sid}.vcf.stats.txt"
-    wildcard_constraints:
-        sid='|'.join([re.escape(x) for x in set(snp_ids)]),
-    shell:
-        """whatshap stats \
-        --sample CAST_EiJ \
-        {input.vcf} > {output}"""
-
-
-
-rule phase_cast:
-    input:
-        vcf=OUTPUT + 'vcf/{sid}.vcf.gz',
-        vcfindex=OUTPUT + 'vcf/{sid}.vcf.gz.tbi',
-        ref=OUTPUT + 'references/GRCm39.fa',
-        bams=expand(OUTPUT + 'merged_bam/{cid}.GRCm39.bam', cid=cell_ids,),
-        bamindex=expand(OUTPUT + 'merged_bam/{cid}.GRCm39.bam.bai', cid=cell_ids,)
-    output:
-        vcf=OUTPUT + 'whatshap/{sid}.GRCm39.phased.vcf.gz',
-    wildcard_constraints:
-        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-        sid='|'.join([re.escape(x) for x in set(snp_ids)]),
-        rid='|'.join([re.escape(x) for x in set(ref_ids) if not x == 'GRCm39']),
-    shell:
-        """whatshap phase --ignore-read-groups \
-        -o {output} --reference={input.ref} \
-        --sample CAST_EiJ \
-        {input.vcf} {input.bams} """
-
-
+# rule phase_cast:
+#     input:
+#         vcf=OUTPUT + 'vcf/{sid}.vcf.gz',
+#         vcfindex=OUTPUT + 'vcf/{sid}.vcf.gz.tbi',
+#         ref=OUTPUT + 'references/GRCm39.fa',
+#         bams=expand(OUTPUT + 'merged_bam/{cid}.GRCm39.bam', cid=cell_ids,),
+#         bamindex=expand(OUTPUT + 'merged_bam/{cid}.GRCm39.bam.bai', cid=cell_ids,)
+#     output:
+#         vcf=OUTPUT + 'whatshap/{sid}.GRCm39.phased.vcf.gz',
+#     wildcard_constraints:
+#         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
+#         sid='|'.join([re.escape(x) for x in set(snp_ids)]),
+#         rid='|'.join([re.escape(x) for x in set(ref_ids) if not x == 'GRCm39']),
+#     shell:
+#         """whatshap phase --ignore-read-groups \
+#         -o {output} --reference={input.ref} \
+#         --sample CAST_EiJ \
+#         {input.vcf} {input.bams} """
+# 
+# 
 
 # rule whatshap_phase:
 #     input:
@@ -152,22 +250,7 @@ rule phase_cast:
 #
 #PHASE_AGAINST = config['phase_against']
 #
-#rule whatshap_haplotyping:
-#    input:
-#        bams=expand(OUTPUT + 'merged_bam/{cid}.{rid}.bam', cid=cell_ids, rid=PHASE_AGAINST),
-#        vcf=OUTPUT + 'whatshap/{sid}.phased.vcf.gz',
-#        ref=OUTPUT + f'references/{rid}.fa'
-#    output:
-#        OUTPUT + 'whatshap/{cid}.{rid}.{sid}.haplotaged.txt'
-#    wildcard_constraints:
-#        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-#        sid='|'.join([re.escape(x) for x in set(snp_ids)]),
-#    threads:
-#        config['threads'] // 2
-#    shell:
-#         """whatshap haplotag {input.vcf} {input.bam} \
-#         --skip-missing-contigs --tag-supplementary --ignore-read-groups -r {input.ref} \
-#         --output-threads={threads} --output-haplotag-list  {output}  -o /dev/null"""
+
 #
 #
 # rule beagle_phase:

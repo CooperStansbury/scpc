@@ -77,10 +77,10 @@ rule all:
         expand(f"{OUTPUT}fast5/{{cid}}.fast5", cid=cell_ids),
         expand(f"{OUTPUT}fastq/{{cid}}.raw.fastq", cid=cell_ids),
         expand(f"{OUTPUT}fastq/{{cid}}.raw.fastq.index", cid=cell_ids),
+        expand(f"{OUTPUT}sequence_reports/{{cid}}.report.pq", cid=cell_ids),
         expand(f"{OUTPUT}fastq/{{cid}}.digested.fastq", cid=cell_ids),
         expand(f"{OUTPUT}reports/seqkit/{{cond}}.fastq.report.txt", cond=['raw', 'digested']),
         expand(f"{OUTPUT}reports/chromsizes/{{rid}}.chrom.sizes", rid=ref_ids),
-        expand(f"{OUTPUT}restriction_sites/{{cid}}.sites.pq", cid=cell_ids),
         expand(f"{OUTPUT}minimap2/{{cid}}.{{rid}}.{{cond}}.bam", cid=cell_ids, rid=ref_ids, cond=['raw', 'digested']),
         expand(f"{OUTPUT}merged_bam/{{cid}}.{{rid}}.bam.bai", cid=cell_ids, rid=ref_ids),
         expand(f"{OUTPUT}reports/coverage/{{cid}}.{{rid}}.{{dig}}.samtools.coverage.txt", cid=cell_ids, rid=ref_ids, dig=['raw', 'digested']),
@@ -90,12 +90,15 @@ rule all:
         expand(f"{OUTPUT}reports/stats/{{cid}}.{{rid}}.samtools.stats.txt", cid=cell_ids, rid=ref_ids),
         expand(f"{OUTPUT}duplicates/{{cid}}.{{rid}}.bam", cid=cell_ids, rid=ref_ids),
         expand(f"{OUTPUT}nanopolish/{{cid}}.{{sid}}.raw.phased.bam", cid=cell_ids, sid=snp_ids),
-    
-        # expand(f"{OUTPUT}vcf/{{sid}}.vcf.gz.tbi", sid=snp_ids),
-        # expand(f"{OUTPUT}vcf/{{sid}}.snps.tsv", sid=snp_ids),
+        expand(f"{OUTPUT}vcf/{{sid}}.vcf.gz.tbi", sid=snp_ids),
+        expand(f"{OUTPUT}vcf/{{sid}}.snps.tsv", sid=snp_ids),
+        expand(f"{OUTPUT}vcf/{{sid}}.phased.vcf", sid=snp_ids),
+        expand(f"{OUTPUT}longread/{{cid}}.{{sid}}.phased.bam", cid=cell_ids, sid=snp_ids),
+        expand(f"{OUTPUT}reports/whatshap/{{sid}}.CAST_EiJ.stats.txt", sid=snp_ids),
+        expand(f"{OUTPUT}reports/whatshap/{{sid}}.129S1_SvImJ.stats.txt", sid=snp_ids),
+        expand(f"{OUTPUT}reports/whatshap/{{sid}}.CAST_EiJ.phased.stats.txt", sid=snp_ids),
+        expand(f"{OUTPUT}reports/whatshap/{{sid}}.129S1_SvImJ.phased.stats.txt", sid=snp_ids),
         # expand(f"{OUTPUT}align_table/{{cid}}.{{rid}}.alignments.pq", cid=cell_ids, rid=ref_ids),
-
-
 
 
 
@@ -115,19 +118,35 @@ rule haplotagging:
         expand(f"{OUTPUT}reports/whatshap/{{sid}}.vcf.stats.txt", sid=snp_ids),
 
 
-
 rule make_alignment_table:
     input:
         bam=OUTPUT + 'merged_bam/{cid}.{rid}.bam',
-        frags=OUTPUT + 'restriction_sites/{cid}.sites.pq',
-    output:
-        OUTPUT + "align_table/{cid}.{rid}.alignments.pq"
+    output: 
+        align=OUTPUT + "align_table/{cid}.{rid}.alignments.pq",
+        report=OUTPUT + 'reports/align_table/{cid}.{rid}.table.summary.txt'
     wildcard_constraints:
         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
         rid='|'.join([re.escape(x) for x in set(ref_ids)]),
+    threads:
+        config['threads'] // 4
+    conda:
+        "envs/pore-c.yml"
     shell:
-        """python scripts/get_alignment_table.py {input.bam} {input.frags} {output}"""
+         """pore_c --dask-num-workers {threads} alignments create-table {input.bam} {output.align} {output.report}"""
+        
 
+#rule make_alignment_table:
+#    input:
+#        bam=OUTPUT + 'merged_bam/{cid}.{rid}.bam',
+#        frags=OUTPUT + 'restriction_sites/{cid}.sites.pq',
+#    output:
+#        OUTPUT + "align_table/{cid}.{rid}.alignments.pq"
+#    wildcard_constraints:
+#        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
+#        rid='|'.join([re.escape(x) for x in set(ref_ids)]),
+#    shell:
+#        """python scripts/get_alignment_table.py {input.bam} {input.frags} {output}"""
+#
 
 rule report_snps:
     input:

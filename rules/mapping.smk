@@ -137,20 +137,3 @@ rule samtools_stats:
         config['threads'] // 4 
     shell:
         """samtools stats -@ {threads} {input.bam} > {output}"""
-
-
-# rule bwa_align_full:
-#     input:
-#         fastq=OUTPUT + "fastq/{cid}.fastq",
-#         ref=OUTPUT + 'references/{rid}.fa',
-#     output:
-#     threads:
-#         config['threads'] // 2
-#     params:
-#         args=config['bwa_args']
-#     wildcard_constraints:
-#         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-#         rid='|'.join([re.escape(x) for x in set(ref_ids)]),
-#     shell:
-#         """bwa {params.args} -t {threads} \
-#         | samtools sort -O bam -o {output}"""

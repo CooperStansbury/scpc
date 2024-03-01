@@ -41,18 +41,6 @@ rule basecall:
         """{params.dorado} basecaller {params.model} --emit-fastq --min-qscore {params.qscore} --no-trim {input} > {output}"""
 
 
-# rule nanopolish_index:
-#     input:
-#         fastq=OUTPUT + "fastq/{cid}.raw.fastq",
-#         fast5=OUTPUT + "fast5/{cid}.fast5",
-#     output:
-#         OUTPUT + "fastq/{cid}.fastq.index",
-#     wildcard_constraints:
-#         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-#     shell:
-#         """nanopolish index -d {input.fast5} {input.fastq}"""
-#     
-
 rule digest_fastq:
     input:
         fastq=OUTPUT + "fastq/{cid}.raw.fastq",
@@ -92,6 +80,20 @@ rule fastq_report:
         config['threads'] // 4
     shell:
         """seqkit stats -a -b -j {threads} {input} -o {output}"""
+
+rule run_fastq_report:
+    input:
+        fastq=OUTPUT + "fastq/{cid}.raw.fastq",
+        bc=config['barcode_path'],
+    output:
+        OUTPUT + "sequence_reports/{cid}.report.pq",
+    wildcard_constraints:
+        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
+    params:
+        enzyme=config['enzyme'],
+    shell:
+        """python scripts/fastq_report.py {input.fastq} {input.bc} {params.enzyme} {output} """
+    
 
 
 rule report_cut_sites:

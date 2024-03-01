@@ -29,9 +29,9 @@ def digestFastq(fastqPath, enzyme, outPath):
             for i, s_idx in enumerate(cut_sites[:-1]):
                 subread = record[s_idx : cut_sites[i+1]]
 
-                subread.id += "_" + str(i)
-                subread.name += "_" + str(i)
-                subread.description += "_" + str(i)
+                subread.id += "_" + str(i) + "_" + str(s_idx)
+                subread.name += "_" + str(i) + "_" + str(s_idx) # add the start site to the read name
+                subread.description += "_" + str(i) + "_" + str(s_idx)
                 output_handle.write(subread.format("fastq"))
                 
             output_handle.write(subread.format("fastq"))

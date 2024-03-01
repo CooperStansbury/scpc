@@ -1,0 +1,1 @@
+~/miniconda3/envs/scpc/bin/pod5 merge /nfs/turbo/umms-indikar/shared/projects/poreC/data/raw_sequencing_files/scPC96o1/pod5_pass/barcode01/PAS66899_pass_barcode01_f0c93abe_47e101d6_0.pod5 --threads 36 -f --output /nfs/turbo/umms-indikar/shared/projects/poreC/data/raw_sequencing_files/scPC96o1/merged_pod5/barcode01.pod5
