@@ -1,2 +1,3 @@
 cell_id,file_path
-b01,/nfs/turbo/umms-indikar/shared/projects/poreC/data/basecaller_test/barcode01.pod5
+b01,/nfs/turbo/umms-indikar/shared/projects/poreC/data/raw_sequencing_files/scPC96o3/merged_pod5/barcode01.pod5
+# b68,/nfs/turbo/umms-indikar/shared/projects/poreC/data/raw_sequencing_files/scPC96o3/merged_pod5/barcode68.pod5

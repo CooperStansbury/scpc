@@ -1,6 +1,6 @@
 {"__default__": {
     "account_slurm": "indikar1",
-    "partition": "standard",
+    "partition": "gpu",
     "jobname": "{rule}.{wildcards}",
     "nodes": 1,
     "procs" : 1,
