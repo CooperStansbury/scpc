@@ -1,15 +1,16 @@
 {"__default__": {
-    "account_slurm": "indikar1",
-    "partition": "gpu",
+    "account_slurm": "indikar99",
+    "partition": "gpu_mig40,gpu,spgpu",
     "jobname": "{rule}.{wildcards}",
     "nodes": 1,
-    "procs" : 1,
-    "cpus": 36,
-    "mem": "100G",
-    "walltime": "96:00:00",
+    "ntasks" : 1,
+    "gpus": 1,
+    "cpus": 18,
+    "mem": "45G",
+    "walltime": "36:00:00",
     "email": "cstansbu@umich.edu",
     "mailon": "a",
-    "mail_type": "NONE",
+    "mail_type": "FAIL",
     "jobout": "oe",
     "outfile": "/nfs/turbo/umms-indikar/shared/projects/poreC/runLogs/{rule}.{wildcards}.out"
     }

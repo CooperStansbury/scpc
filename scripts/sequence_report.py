@@ -85,13 +85,7 @@ def get_sequence_report(fpath, rb, barcode, barcode_rc):
     from fastq files """
     report_df = []
     
-    count = -1
-    stop = 500
     for read in pysam.FastxFile(fpath):
-        count += 1
-        if count == stop:
-            break
-
         # get read information
         read_seq = read.sequence
         read_seq_length = len(read_seq)
@@ -140,7 +134,7 @@ if __name__ == "__main__":
     rb = Restriction.RestrictionBatch([enzyme])
     
     # set up get barcodes
-    barcode_id = os.path.basename(fastq_path).split(".")[0]
+    barcode_id = os.path.basename(fastq_path).split(".")[0][2:] # trim the experiment number
     code_df = pd.read_csv(barcode_path)
     barcode = code_df[code_df['cell_id'] == barcode_id]['barcode'].values[0]
     barcode_rc = str(Seq(barcode).reverse_complement())

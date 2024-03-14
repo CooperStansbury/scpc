@@ -2,7 +2,7 @@ rule copy_pod5:
     input:
         pod5_df['file_path'].to_list()
     output:
-        pod5_df['out_path'].to_list(),
+        protected(pod5_df['out_path'].to_list()),
     run:
         from shutil import copyfile
         for i, fpath in enumerate(input):
@@ -16,6 +16,7 @@ rule make_fast5:
         OUTPUT + "pod5/{cid}.pod5"
     output:
         directory=directory(OUTPUT + "fast5/{cid}.fast5"),
+        flag=touch(OUTPUT + "flags/{cid}.merge.done"),
     wildcard_constraints:
         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
     threads:
@@ -28,9 +29,10 @@ rule make_fast5:
 
 rule basecall:
     input:
-        OUTPUT + "pod5/{cid}.pod5"
+        pod5=OUTPUT + "pod5/{cid}.pod5",
+        flag=OUTPUT + "flags/{cid}.merge.done",
     output:
-        OUTPUT + "fastq/{cid}.raw.fastq"
+        protected(OUTPUT + "fastq/{cid}.raw.fastq")
     wildcard_constraints:
         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
     params:
@@ -38,7 +40,7 @@ rule basecall:
         model=config['dorado_model'],
         qscore=config['dorado_min_qscore'],
     shell:
-        """{params.dorado} basecaller {params.model} --emit-fastq --min-qscore {params.qscore} --no-trim {input} > {output}"""
+        """{params.dorado} basecaller {params.model} --emit-fastq --min-qscore {params.qscore} --no-trim {input.pod5} > {output}"""
 
 
 rule digest_fastq:
@@ -82,10 +84,56 @@ rule fastq_report:
         """seqkit stats -a -b -j {threads} {input} -o {output}"""
 
 
+rule get_barcode_file:
+    input:
+        config['barcode_path'],
+    output:
+        OUTPUT + "resources/barcodes.txt"
+    shell:
+        """cp {input} {output}"""
+
+
+rule get_barcode_fasta:
+    input:
+        OUTPUT + "resources/barcodes.txt"
+    output:
+        OUTPUT + "resources/barcodes.fasta"
+    shell:
+        """python scripts/barcode_fasta.py {input} {output}"""
+    
+
+rule locate_barcodes:
+    input:
+        fastq=OUTPUT + "fastq/{cid}.raw.fastq",
+        codes=OUTPUT + "resources/barcodes.fasta"
+    output:
+        OUTPUT + 'barcode_locations/{cid}.csv'
+    wildcard_constraints:
+        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
+    threads:
+        config['threads'] // 4
+    shell:
+        """seqkit locate -f {input.codes} {input.fastq} -j {threads} > {output} """
+
+
+rule locate_enzyme:
+    input:
+        fastq=OUTPUT + "fastq/{cid}.raw.fastq",
+    output:
+        OUTPUT + 'NlaIII_locations/{cid}.csv'
+    wildcard_constraints:
+        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
+    threads:
+        config['threads'] // 4
+    shell:
+        """seqkit locate -p CATG {input.fastq} -j {threads} > {output} """
+    
+
+
 rule run_sequence_report:
     input:
         fastq=OUTPUT + "fastq/{cid}.raw.fastq",
-        bc=config['barcode_path'],
+        bc=OUTPUT + "resources/barcodes.txt",
     output:
         OUTPUT + "reports/sequence_reports/{cid}.report.pq",
     wildcard_constraints:
@@ -94,7 +142,22 @@ rule run_sequence_report:
         enzyme=config['enzyme'],
     shell:
         """python scripts/sequence_report.py {input.fastq} {input.bc} {params.enzyme} {output} """
-    
+
+
+rule fastqc_report:
+    input:
+        OUTPUT + "fastq/{cid}.raw.fastq",
+    output:
+        html=OUTPUT + "reports/fastqc/{cid}.raw_fastqc.html",
+        zip=OUTPUT + "reports/fastqc/{cid}.raw_fastqc.zip" 
+    params: "--quiet"
+    wildcard_constraints:
+        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
+    threads: 
+        config['threads'] // 4
+    wrapper:
+        "v1.14.1/bio/fastqc"
+
 
 
 rule report_cut_sites:

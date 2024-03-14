@@ -61,6 +61,20 @@ rule samtools_index_merged:
        "samtools index -@ {threads} {input}"
 
 
+rule nanostat_aligned:
+    input:
+        OUTPUT + 'merged_bam/{cid}.{rid}.bam'
+    output:
+        OUTPUT + "reports/NanoStat/{cid}.{rid}.tsv"
+    wildcard_constraints:
+        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
+        rid='|'.join([re.escape(x) for x in set(ref_ids)]),
+    threads:
+        config['threads'] // 2
+    shell:
+        """NanoStat -t {threads} --bam {input} -n {output}"""
+
+
 rule mark_dupes:
     input:
         OUTPUT + 'merged_bam/{cid}.{rid}.bam'
