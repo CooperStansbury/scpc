@@ -150,7 +150,7 @@ rule fastqc_report:
     output:
         html=OUTPUT + "reports/fastqc/{cid}.raw_fastqc.html",
         zip=OUTPUT + "reports/fastqc/{cid}.raw_fastqc.zip" 
-    params: "--quiet"
+    params: f"--quiet --contaminants {config['fastqc_contaminants']} --adapters {config['fastqc_adapters']}"
     wildcard_constraints:
         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
     threads: 
@@ -159,17 +159,34 @@ rule fastqc_report:
         "v1.14.1/bio/fastqc"
 
 
-
-rule report_cut_sites:
+rule get_read_lengths:
     input:
         fastq=OUTPUT + "fastq/{cid}.raw.fastq",
     output:
-        OUTPUT + "restriction_sites/{cid}.sites.pq",
+        OUTPUT + "read_stats/{cid}.read_lengths.pq",
     wildcard_constraints:
         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
+    threads:
+        config['threads'] // 4
+    shell:
+        """python scripts/get_read_lengths.py {input} {threads} {output}"""
+
+
+
+rule get_restriction_counts:
+    input:
+        fastq=OUTPUT + "fastq/{cid}.raw.fastq",
+    output:
+        OUTPUT + "read_stats/{cid}.restriction_counts.pq",
+    wildcard_constraints:
+        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
+    threads:
+        config['threads'] // 4
     params:
         cutter=config['enzyme'],
     shell:
-        """python scripts/get_cut_sites.py {input} \
-           {params.cutter} {output} """
+        """python scripts/get_restriction_count.py {input} {threads} {params.cutter} {output}"""
+
+
+
 

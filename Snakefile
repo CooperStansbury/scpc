@@ -70,6 +70,7 @@ include: "rules/haplotyping.smk"
 ################ ALL RULES ################
 rule all:
     input:
+        expand(f"{OUTPUT}reports/chromsizes/{{rid}}.chrom.sizes", rid=ref_ids),        
         expand(f"{OUTPUT}minimap2/{{cid}}.{{rid}}.{{cond}}.bam", cid=cell_ids, rid=ref_ids, cond=['raw', 'digested']),
         expand(f"{OUTPUT}merged_bam/{{cid}}.{{rid}}.bam.bai", cid=cell_ids, rid=ref_ids),
         expand(f"{OUTPUT}reports/coverage/{{cid}}.{{rid}}.{{dig}}.samtools.coverage.txt", cid=cell_ids, rid=ref_ids, dig=['raw', 'digested']),
@@ -77,19 +78,20 @@ rule all:
         expand(f"{OUTPUT}reports/flagstat/{{cid}}.{{rid}}.flagstat.tsv", cid=cell_ids, rid=ref_ids),
         expand(f"{OUTPUT}reports/coverage_by_reference/{{rid}}.samtools.coverage.txt", rid=ref_ids),
         expand(f"{OUTPUT}reports/stats/{{cid}}.{{rid}}.samtools.stats.txt", cid=cell_ids, rid=ref_ids),
+        expand(f"{OUTPUT}reports/fastqc/{{cid}}.raw_fastqc.html", cid=cell_ids),
         expand(f"{OUTPUT}reports/NanoStat/{{cid}}.{{rid}}.tsv", cid=cell_ids, rid=ref_ids),
+        expand(f"{OUTPUT}reports/epi2me_coverage_by_cell/{{cid}}.{{rid}}.samtools.coverage.txt", cid=cell_ids, rid=ref_ids),
+        expand(f"{OUTPUT}reports/seqkit/{{cond}}.fastq.report.txt", cond=['raw', 'digested']),
         expand(f"{OUTPUT}duplicates/{{cid}}.{{rid}}.bam", cid=cell_ids, rid=ref_ids),
         expand(f"{OUTPUT}vcf/{{sid}}.vcf.gz.tbi", sid=snp_ids),
         expand(f"{OUTPUT}vcf/{{sid}}.snps.tsv", sid=snp_ids),
-        expand(f"{OUTPUT}reports/fastqc/{{cid}}.raw_fastqc.html", cid=cell_ids),
         expand(f"{OUTPUT}barcode_locations/{{cid}}.csv", cid=cell_ids),
         expand(f"{OUTPUT}NlaIII_locations/{{cid}}.csv", cid=cell_ids),
         expand(f"{OUTPUT}epi2me_digest/{{cid}}.{{rid}}.bam", cid=cell_ids, rid=ref_ids),
-        expand(f"{OUTPUT}reports/epi2me_coverage_by_reference/{{rid}}.samtools.coverage.txt", rid=ref_ids),
-        expand(f"{OUTPUT}reports/epi2me_coverage_by_cell/{{cid}}.{{rid}}.samtools.coverage.txt", cid=cell_ids, rid=ref_ids),
         expand(f"{OUTPUT}epi2me/{{cid}}.{{rid}}.ns.bam", cid=cell_ids, rid=ref_ids),
-        # expand(f"{OUTPUT}align_table/{{cid}}.{{rid}}.alignments.pq", cid=cell_ids, rid=ref_ids),
-        # expand(f"{OUTPUT}reports/sequence_reports/{{cid}}.report.pq", cid=cell_ids),
+        expand(f"{OUTPUT}read_stats/{{cid}}.read_lengths.pq", cid=cell_ids,),
+        expand(f"{OUTPUT}read_stats/{{cid}}.restriction_counts.pq", cid=cell_ids,),
+        expand(f"{OUTPUT}align_table/{{cid}}.{{rid}}.{{cond}}.parquet", cid=cell_ids, rid=ref_ids, cond=['raw', 'digested']),
     
 
 rule basecalling:
@@ -101,8 +103,11 @@ rule basecalling:
         expand(f"{OUTPUT}fastq/{{cid}}.raw.fastq", cid=cell_ids),
         expand(f"{OUTPUT}fastq/{{cid}}.raw.fastq.index", cid=cell_ids),
         expand(f"{OUTPUT}fastq/{{cid}}.digested.fastq", cid=cell_ids),
-        expand(f"{OUTPUT}reports/seqkit/{{cond}}.fastq.report.txt", cond=['raw', 'digested']),
-        expand(f"{OUTPUT}reports/chromsizes/{{rid}}.chrom.sizes", rid=ref_ids),
+
+
+rule archive:
+    input:
+        expand(f"{OUTPUT}reports/sequence_reports/{{cid}}.report.pq", cid=cell_ids),
 
 
 rule haplotagging:
@@ -128,35 +133,22 @@ rule haplotagging:
         expand(f"{OUTPUT}reports/whatshap/{{sid}}.129S1_SvImJ.phased.stats.txt", sid=snp_ids),
 
 
-rule make_alignment_table:
+
+rule bam2table:
     input:
-        bam=OUTPUT + 'merged_bam/{cid}.{rid}.bam',
-    output: 
-        align=OUTPUT + "align_table/{cid}.{rid}.alignments.pq",
-        report=OUTPUT + 'reports/align_table/{cid}.{rid}.table.summary.txt'
+        bam=OUTPUT + "minimap2/{cid}.{rid}.{cond}.bam"
+    output:
+        OUTPUT + "align_table/{cid}.{rid}.{cond}.parquet"
     wildcard_constraints:
         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
         rid='|'.join([re.escape(x) for x in set(ref_ids)]),
-    threads:
-        config['threads'] // 4
-    conda:
-        "envs/pore-c.yml"
+        cond='raw|digested',
+    params:
+        sep="_",
     shell:
-         """pore_c --dask-num-workers {threads} alignments create-table {input.bam} {output.align} {output.report}"""
-        
+        """python scripts/bam2table.py {input.bam} {params.sep} {output}"""
 
-#rule make_alignment_table:
-#    input:
-#        bam=OUTPUT + 'merged_bam/{cid}.{rid}.bam',
-#        frags=OUTPUT + 'restriction_sites/{cid}.sites.pq',
-#    output:
-#        OUTPUT + "align_table/{cid}.{rid}.alignments.pq"
-#    wildcard_constraints:
-#        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-#        rid='|'.join([re.escape(x) for x in set(ref_ids)]),
-#    shell:
-#        """python scripts/get_alignment_table.py {input.bam} {input.frags} {output}"""
-#
+
 
 rule report_snps:
     input:
@@ -186,36 +178,3 @@ rule get_concatemers:
     shell:
         """python scripts/resolve_concatemers.py {input} {params.mapq} {output}"""
     
-
-
-# 
-# rule get_cell_ids:
-#     input:
-#         OUTPUT + 'references/snps.vcf.gz'
-#     output:
-#         OUTPUT + 'references/cell_ids.txt'
-#     shell:
-#         """bcftools query -l {input} > {output}"""
-# 
-
-# rule tag_reads:
-#     input:
-#         vcf=OUTPUT + 'references/snps.vcf.gz',
-#         ref=OUTPUT + 'references/reference.fa',
-#         bam=OUTPUT + 'bam/{cid}.bam',
-#         cell_ids=OUTPUT + 'references/vcf.cell_ids.txt',
-#     output:
-#         tab=OUTPUT + 'haplotypes/{cid}.txt',
-#         bam=OUTPUT + 'haplotypes/{cid}.bam',
-#     wildcard_constraints:
-#         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-#     threads:
-#         config['threads'] // 4
-#     params:
-#         cell_ids=", ".join([x.strip() for x in open(OUTPUT + 'references/vcf.cell_ids.txt')])
-#     shell:
-#         """whatshap haplotag {input.vcf} {input.bam} \
-#         --skip-missing-contigs \
-#         --ignore-read-groups \
-#         --sample 'CAST_EiJ' --output-threads={threads} --output-haplotag-list {output.tab} --output {output.bam}"""
-#     

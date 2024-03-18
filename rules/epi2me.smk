@@ -27,7 +27,7 @@ rule epi2me_coverage_by_cell:
         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
         rid='|'.join([re.escape(x) for x in set(ref_ids)]),
     shell:
-        """samtools coverage {input} > {output}"""
+        """samtools sort {input} | samtools coverage - > {output}"""
 
 
 rule epi2me_coverage_by_reference:
@@ -39,7 +39,7 @@ rule epi2me_coverage_by_reference:
         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
         rid='|'.join([re.escape(x) for x in set(ref_ids)]),
     shell:   
-        """samtools coverage {input} > {output}"""
+        """samtools merge - {input} | samtools sort -| samtools coverage - > {output}"""
 
 
 rule epi2me_annotate:
