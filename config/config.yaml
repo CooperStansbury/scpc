@@ -13,6 +13,7 @@ fastqc_contaminants: "config/contaminant_list.txt"
 longread_path: "/nfs/turbo/umms-indikar/shared/projects/poreC/data/phasing_tools/longphase_linux-x64"
 chromosome_list: "config/chromList.txt"
 phase_against: 'GRCm39'
+n_mismatches: 3
 enzyme: 'NlaIII'
 indexer: "minimap2 -d"
 minimap_args : "-ax map-ont -k 15 -w 5"

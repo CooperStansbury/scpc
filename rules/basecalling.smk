@@ -112,8 +112,10 @@ rule locate_barcodes:
         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
     threads:
         config['threads'] // 4
+    params:
+        m=config['n_mismatches']
     shell:
-        """seqkit locate -f {input.codes} {input.fastq} -j {threads} > {output} """
+        """seqkit locate -m {params.m} -f {input.codes} {input.fastq} -j {threads} > {output} """
 
 
 rule locate_enzyme:
@@ -166,10 +168,8 @@ rule get_read_lengths:
         OUTPUT + "read_stats/{cid}.read_lengths.pq",
     wildcard_constraints:
         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-    threads:
-        config['threads'] // 4
     shell:
-        """python scripts/get_read_lengths.py {input} {threads} {output}"""
+        """python scripts/get_read_lengths.py {input} {output}"""
 
 
 
@@ -180,12 +180,10 @@ rule get_restriction_counts:
         OUTPUT + "read_stats/{cid}.restriction_counts.pq",
     wildcard_constraints:
         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-    threads:
-        config['threads'] // 4
     params:
         cutter=config['enzyme'],
     shell:
-        """python scripts/get_restriction_count.py {input} {threads} {params.cutter} {output}"""
+        """python scripts/get_restriction_count.py {input} {params.cutter} {output}"""
 
 
 

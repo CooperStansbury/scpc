@@ -32,81 +32,55 @@ rule samtools_index:
        "samtools index -@ {threads} {input}"
 
 
-rule merge_bams:
-    input:
-        full=OUTPUT + 'minimap2/{cid}.{rid}.raw.bam',
-        digested=OUTPUT + 'minimap2/{cid}.{rid}.digested.bam',
-    output:    
-        OUTPUT + 'merged_bam/{cid}.{rid}.bam'
-    wildcard_constraints:
-        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-        rid='|'.join([re.escape(x) for x in set(ref_ids)]),
-    threads:
-        config['threads'] // 4
-    shell:
-        """samtools merge -@ {threads} -o {output} {input.full} {input.digested} """
-
-
-rule samtools_index_merged:
+rule nanostat_aligned:
    input:
-       OUTPUT + 'merged_bam/{cid}.{rid}.bam'
+       OUTPUT + 'minimap2/{cid}.{rid}.{cond}.bam'
    output:
-       OUTPUT + 'merged_bam/{cid}.{rid}.bam.bai'
-   threads:
-       config['threads'] // 2
+       OUTPUT + "reports/nanostat/{cid}.{rid}.{cond}.tsv"
    wildcard_constraints:
        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
        rid='|'.join([re.escape(x) for x in set(ref_ids)]),
+        cond='raw|digested',
+   threads:
+       config['threads'] // 4
    shell:
-       "samtools index -@ {threads} {input}"
-
-
-rule nanostat_aligned:
-    input:
-        OUTPUT + 'merged_bam/{cid}.{rid}.bam'
-    output:
-        OUTPUT + "reports/NanoStat/{cid}.{rid}.tsv"
-    wildcard_constraints:
-        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-        rid='|'.join([re.escape(x) for x in set(ref_ids)]),
-    threads:
-        config['threads'] // 2
-    shell:
-        """NanoStat -t {threads} --bam {input} -n {output}"""
-
-
-rule mark_dupes:
-    input:
-        OUTPUT + 'merged_bam/{cid}.{rid}.bam'
-    output:
-        bam=OUTPUT + 'duplicates/{cid}.{rid}.bam',
-        report=OUTPUT + 'reports/duplicates/{cid}.{rid}.txt',
-    wildcard_constraints:
-        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-        rid='|'.join([re.escape(x) for x in set(ref_ids)]),
-    shell:
-        """gatk MarkDuplicates I={input} O={output.bam} M={output.report} """
+       """NanoStat -t {threads} --bam {input} -n {output}"""
 
 
 rule samtool_flagstat:
     input:
-        bam=OUTPUT + 'merged_bam/{cid}.{rid}.bam'
+        bam=OUTPUT + 'minimap2/{cid}.{rid}.{cond}.bam'
     output:
-        OUTPUT + 'reports/flagstat/{cid}.{rid}.flagstat.tsv'
+        OUTPUT + 'reports/flagstat/{cid}.{rid}.{cond}.tsv'
     wildcard_constraints:
         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
         rid='|'.join([re.escape(x) for x in set(ref_ids)]),
+        cond='raw|digested',
     threads:
         config['threads'] // 4 
     shell:
         """samtools flagstat -@ {threads} -O 'tsv' {input.bam} > {output}"""
 
 
-rule samtools_coverage_by_digest:
+rule samtools_stats:
     input:
         bam=OUTPUT + 'minimap2/{cid}.{rid}.{cond}.bam'
     output:
-        OUTPUT + "reports/coverage/{cid}.{rid}.{cond}.samtools.coverage.txt"
+        OUTPUT + 'reports/stats/{cid}.{rid}.{cond}.txt'
+    wildcard_constraints:
+        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
+        rid='|'.join([re.escape(x) for x in set(ref_ids)]),
+        cond='raw|digested',
+    threads:
+        config['threads'] // 4 
+    shell:
+        """samtools stats -@ {threads} {input.bam} > {output}"""
+
+rule samtools_coverage:
+    input:
+        bam=OUTPUT + 'minimap2/{cid}.{rid}.{cond}.bam'
+    output:
+        OUTPUT + "reports/coverage/{cid}.{rid}.{cond}.txt"
     wildcard_constraints:
         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
         rid='|'.join([re.escape(x) for x in set(ref_ids)]),
@@ -115,39 +89,30 @@ rule samtools_coverage_by_digest:
         """samtools coverage {input} > {output}"""
 
 
-rule coverage_by_cell:
-    input:
-        bam=expand(OUTPUT + 'minimap2/{{cid}}.{{rid}}.{digest}.bam', digest=['raw', 'digested'])
-    output:
-        OUTPUT + "reports/coverage_by_cell/{cid}.{rid}.samtools.coverage.txt"
-    wildcard_constraints:
-        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-        rid='|'.join([re.escape(x) for x in set(ref_ids)]),
-    shell:
-        """samtools coverage {input} > {output}"""
 
+# rule mark_dupes:
+#     input:
+#         OUTPUT + 'merged_bam/{cid}.{rid}.bam'
+#     output:
+#         bam=OUTPUT + 'duplicates/{cid}.{rid}.bam',
+#         report=OUTPUT + 'reports/duplicates/{cid}.{rid}.txt',
+#     wildcard_constraints:
+#         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
+#         rid='|'.join([re.escape(x) for x in set(ref_ids)]),
+#     shell:
+#         """gatk MarkDuplicates I={input} O={output.bam} M={output.report} """
+# 
 
-rule coverage_by_reference:
-    input:
-        expand(OUTPUT + 'merged_bam/{cid}.{{rid}}.bam', cid=cell_ids)
-    output:
-        OUTPUT + "reports/coverage_by_reference/{rid}.samtools.coverage.txt",
-    wildcard_constraints:
-        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-        rid='|'.join([re.escape(x) for x in set(ref_ids)]),
-    shell:   
-        """samtools coverage {input} > {output}"""
-
-
-rule samtools_stats:
-    input:
-        bam=OUTPUT + 'merged_bam/{cid}.{rid}.bam'
-    output:
-        OUTPUT + 'reports/stats/{cid}.{rid}.samtools.stats.txt'
-    wildcard_constraints:
-        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-        rid='|'.join([re.escape(x) for x in set(ref_ids)]),
-    threads:
-        config['threads'] // 4 
-    shell:
-        """samtools stats -@ {threads} {input.bam} > {output}"""
+# 
+# rule samtools_stats:
+#     input:
+#         bam=OUTPUT + 'merged_bam/{cid}.{rid}.bam'
+#     output:
+#         OUTPUT + 'reports/stats/{cid}.{rid}.samtools.stats.txt'
+#     wildcard_constraints:
+#         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
+#         rid='|'.join([re.escape(x) for x in set(ref_ids)]),
+#     threads:
+#         config['threads'] // 4 
+#     shell:
+#         """samtools stats -@ {threads} {input.bam} > {output}"""
