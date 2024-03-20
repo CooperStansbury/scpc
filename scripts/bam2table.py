@@ -21,6 +21,25 @@ def get_align_type(align):
     if align.is_supplementary:
         align_type = 'supplementary'
     return align_type
+
+
+def soft_clipped_read_start(align):
+    """A function to account for softclipped bases
+    in the read start """
+    offset = 0
+
+    cigar = align.cigartuples
+
+    if cigar is None:
+        return offset
+    elif len(cigar) > 0:
+        if cigar[0][0] == 4:
+            offset = cigar[0][1]
+            return offset
+        else:
+            return offset
+    else:
+        offset    
     
 
 def parse_read_name(align, sep):
@@ -60,6 +79,8 @@ def bam_to_df(bampath, sep="_"):
         # parse read name
         read_name, fragment_index, is_digested, offset = parse_read_name(align, sep)
 
+        clipped = soft_clipped_read_start(align)
+
         # check for the alignment tag
         if align.has_tag('AS'):
             as_tag = align.get_tag('AS')
@@ -81,8 +102,8 @@ def bam_to_df(bampath, sep="_"):
             'is_mapped' : align.is_mapped,
             'mean_align_base_quality' : mean_qual,
             'read_length' : align.query_length,
-            'read_start' : align.query_alignment_start + offset,
-            'read_end' : align.query_alignment_end + offset, 
+            'read_start' : align.query_alignment_start + offset + clipped,
+            'read_end' : align.query_alignment_end + offset + clipped, 
             'chrom' : align.reference_name,
             'reference_start' : align.reference_start,
             'reference_end' : align.reference_end,

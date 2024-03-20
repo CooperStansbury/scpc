@@ -18,28 +18,16 @@ rule epi2me_align:
         -t {threads} -o {output}"""
 
 
-rule epi2me_coverage_by_cell:
+rule epi2me_coverage:
     input:
         bam=OUTPUT + 'epi2me_digest/{cid}.{rid}.bam',
     output:
-        OUTPUT + "reports/epi2me_coverage_by_cell/{cid}.{rid}.samtools.coverage.txt"
+        OUTPUT + "reports/epi2me_coverage/{cid}.{rid}.txt"
     wildcard_constraints:
         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
         rid='|'.join([re.escape(x) for x in set(ref_ids)]),
     shell:
         """samtools sort {input} | samtools coverage - > {output}"""
-
-
-rule epi2me_coverage_by_reference:
-    input:
-        expand(OUTPUT + 'epi2me_digest/{cid}.{{rid}}.bam', cid=cell_ids)
-    output:
-        OUTPUT + "reports/epi2me_coverage_by_reference/{rid}.samtools.coverage.txt",
-    wildcard_constraints:
-        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-        rid='|'.join([re.escape(x) for x in set(ref_ids)]),
-    shell:   
-        """samtools merge - {input} | samtools sort -| samtools coverage - > {output}"""
 
 
 rule epi2me_annotate:

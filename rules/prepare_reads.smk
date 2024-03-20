@@ -1,46 +1,14 @@
-rule copy_pod5:
+rule copy_fastq:
     input:
-        pod5_df['file_path'].to_list()
+        fastq_df['file_path'].to_list()
     output:
-        protected(pod5_df['out_path'].to_list()),
+        protected(fastq_df['out_path'].to_list()),
     run:
         from shutil import copyfile
         for i, fpath in enumerate(input):
     
             outPath = output[i]
             copyfile(fpath, outPath)
-
-
-rule make_fast5:
-    input:
-        OUTPUT + "pod5/{cid}.pod5"
-    output:
-        directory=directory(OUTPUT + "fast5/{cid}.fast5"),
-        flag=touch(OUTPUT + "flags/{cid}.merge.done"),
-    wildcard_constraints:
-        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-    threads:
-        config['threads'] // 4
-    shell:
-        """pod5 convert to_fast5 {input} \
-        -t {threads} \
-        --output {output.directory}"""
-
-
-rule basecall:
-    input:
-        pod5=OUTPUT + "pod5/{cid}.pod5",
-        flag=OUTPUT + "flags/{cid}.merge.done",
-    output:
-        protected(OUTPUT + "fastq/{cid}.raw.fastq")
-    wildcard_constraints:
-        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-    params:
-        dorado=config['dorado_path'],
-        model=config['dorado_model'],
-        qscore=config['dorado_min_qscore'],
-    shell:
-        """{params.dorado} basecaller {params.model} --emit-fastq --min-qscore {params.qscore} --no-trim {input.pod5} > {output}"""
 
 
 rule digest_fastq:
@@ -55,20 +23,6 @@ rule digest_fastq:
     shell:
         """python scripts/digest.py {input} \
            {params.cutter} {output.fastq} """
-
-
-rule f5c_index:
-    input:
-        fastq=OUTPUT + "fastq/{cid}.raw.fastq",
-        fast5=OUTPUT + "fast5/{cid}.fast5",
-    output:
-        OUTPUT + "fastq/{cid}.raw.fastq.index",
-    wildcard_constraints:
-        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-    threads:
-        config['threads'] // 2
-    shell:
-        """f5c index -t {threads} --iop 10 -d {input.fast5} {input.fastq}"""
 
 
 rule fastq_report:
@@ -184,7 +138,3 @@ rule get_restriction_counts:
         cutter=config['enzyme'],
     shell:
         """python scripts/get_restriction_count.py {input} {params.cutter} {output}"""
-
-
-
-

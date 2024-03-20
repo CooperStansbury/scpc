@@ -76,6 +76,7 @@ rule samtools_stats:
     shell:
         """samtools stats -@ {threads} {input.bam} > {output}"""
 
+
 rule samtools_coverage:
     input:
         bam=OUTPUT + 'minimap2/{cid}.{rid}.{cond}.bam'
@@ -89,30 +90,16 @@ rule samtools_coverage:
         """samtools coverage {input} > {output}"""
 
 
+rule mark_duplicates:
+    input:
+         OUTPUT + 'minimap2/{cid}.{rid}.{cond}.bam'
+    output:
+         bam=OUTPUT + 'duplicates/{cid}.{rid}.{cond}.bam',
+         report=OUTPUT + 'reports/duplicates/{cid}.{rid}.{cond}.txt',
+    wildcard_constraints:
+         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
+         rid='|'.join([re.escape(x) for x in set(ref_ids)]),
+         digest='raw|digested',
+    shell:
+         """gatk MarkDuplicates I={input} O={output.bam} M={output.report} """
 
-# rule mark_dupes:
-#     input:
-#         OUTPUT + 'merged_bam/{cid}.{rid}.bam'
-#     output:
-#         bam=OUTPUT + 'duplicates/{cid}.{rid}.bam',
-#         report=OUTPUT + 'reports/duplicates/{cid}.{rid}.txt',
-#     wildcard_constraints:
-#         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-#         rid='|'.join([re.escape(x) for x in set(ref_ids)]),
-#     shell:
-#         """gatk MarkDuplicates I={input} O={output.bam} M={output.report} """
-# 
-
-# 
-# rule samtools_stats:
-#     input:
-#         bam=OUTPUT + 'merged_bam/{cid}.{rid}.bam'
-#     output:
-#         OUTPUT + 'reports/stats/{cid}.{rid}.samtools.stats.txt'
-#     wildcard_constraints:
-#         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-#         rid='|'.join([re.escape(x) for x in set(ref_ids)]),
-#     threads:
-#         config['threads'] // 4 
-#     shell:
-#         """samtools stats -@ {threads} {input.bam} > {output}"""

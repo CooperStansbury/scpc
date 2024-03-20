@@ -14,6 +14,9 @@ CONFIG='config/config.yaml'
 OUTPUT_PATH="$(cat ${CONFIG} | shyaml get-value output_path)"
 THREADS=36
 
+### export the environment 
+conda env export > environment.yml
+
 ## build the workflow from the most current snakefile
 cp Snakefile workflow.smk
 echo "Built Workflow..."

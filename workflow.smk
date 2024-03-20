@@ -75,18 +75,17 @@ rule all:
         expand(f"{OUTPUT}reports/seqkit/{{cond}}.fastq.report.txt", cond=['raw', 'digested']),
         expand(f"{OUTPUT}reports/fastqc/{{cid}}.raw_fastqc.html", cid=cell_ids),
         expand(f"{OUTPUT}reports/coverage/{{cid}}.{{rid}}.{{dig}}.txt", cid=cell_ids, rid=ref_ids, dig=['raw', 'digested']),
-        expand(f"{OUTPUT}reports/nanostat/{{cid}}.{{rid}}.{{dig}}.tsv", cid=cell_ids, rid=ref_ids, dig=['raw', 'digested']),
         expand(f"{OUTPUT}reports/flagstat/{{cid}}.{{rid}}.{{dig}}.tsv", cid=cell_ids, rid=ref_ids, dig=['raw', 'digested']),
         expand(f"{OUTPUT}reports/stats/{{cid}}.{{rid}}.{{dig}}.txt", cid=cell_ids, rid=ref_ids, dig=['raw', 'digested']),
-        expand(f"{OUTPUT}read_stats/{{cid}}.read_lengths.pq", cid=cell_ids,),
-        expand(f"{OUTPUT}read_stats/{{cid}}.restriction_counts.pq", cid=cell_ids,),
+        expand(f"{OUTPUT}read_stats/{{cid}}.read_lengths.parquet", cid=cell_ids,),
+        expand(f"{OUTPUT}read_stats/{{cid}}.restriction_counts.parquet", cid=cell_ids,),
         expand(f"{OUTPUT}barcode_locations/{{cid}}.csv", cid=cell_ids),
-        expand(f"{OUTPUT}NlaIII_locations/{{cid}}.csv", cid=cell_ids),
-        # expand(f"{OUTPUT}reports/epi2me_coverage_by_cell/{{cid}}.{{rid}}.samtools.coverage.txt", cid=cell_ids, rid=ref_ids),
-        # expand(f"{OUTPUT}duplicates/{{cid}}.{{rid}}.bam", cid=cell_ids, rid=ref_ids),
-        # expand(f"{OUTPUT}epi2me_digest/{{cid}}.{{rid}}.bam", cid=cell_ids, rid=ref_ids),
-        # expand(f"{OUTPUT}epi2me/{{cid}}.{{rid}}.ns.bam", cid=cell_ids, rid=ref_ids),
-        # expand(f"{OUTPUT}align_table/{{cid}}.{{rid}}.{{cond}}.parquet", cid=cell_ids, rid=ref_ids, cond=['raw', 'digested']),
+        expand(f"{OUTPUT}enzyme_locations/{{cid}}.csv", cid=cell_ids),
+        expand(f"{OUTPUT}reports/epi2me_coverage/{{cid}}.{{rid}}.txt", cid=cell_ids, rid=ref_ids),
+        expand(f"{OUTPUT}epi2me_digest/{{cid}}.{{rid}}.bam", cid=cell_ids, rid=ref_ids),
+        expand(f"{OUTPUT}epi2me/{{cid}}.{{rid}}.ns.bam", cid=cell_ids, rid=ref_ids),
+        expand(f"{OUTPUT}duplicates/{{cid}}.{{rid}}.{{dig}}.bam", cid=cell_ids, rid=ref_ids, dig=['raw', 'digested']),
+        expand(f"{OUTPUT}align_table/{{cid}}.{{rid}}.{{dig}}.parquet", cid=cell_ids, rid=ref_ids, dig=['raw', 'digested']),
     
 
 rule basecalling:
@@ -103,6 +102,7 @@ rule basecalling:
 rule archive:
     input:
         expand(f"{OUTPUT}reports/sequence_reports/{{cid}}.report.pq", cid=cell_ids),
+        expand(f"{OUTPUT}reports/nanostat/{{cid}}.{{rid}}.{{dig}}.tsv", cid=cell_ids, rid=ref_ids, dig=['raw', 'digested']),
 
 
 rule haplotagging:
