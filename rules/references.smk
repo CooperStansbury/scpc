@@ -15,7 +15,7 @@ rule make_chromsizes:
     input:
         OUTPUT + 'references/{rid}.fa',
     output:
-        OUTPUT + 'reports/chromsizes/{rid}.chrom.sizes'
+        OUTPUT + 'references/{rid}.chrom.sizes'
     wildcard_constraints:
         rid='|'.join([re.escape(x) for x in set(ref_ids)]),
     shell:
@@ -35,15 +35,6 @@ rule minimap2_index:
         "minimap2 -t {threads} -d {output} {input.refgenome}"
 
 
-# rule bwa_index:
-#     input:
-#         refgenome=OUTPUT + 'references/{rid}.fa'
-#     output:
-#         OUTPUT + 'references/{rid}.bwt'
-#     shell:
-#         "bwa index {input}"
-
-
 rule copy_gtfs:
     input:
         gtf_df['file_path'].to_list()
@@ -55,22 +46,3 @@ rule copy_gtfs:
     
             outPath = output[i]
             copyfile(fpath, outPath)
-
-
-# # custom rule for adding a masked references
-# rule mask_reference:
-#     input:
-#         ref=OUTPUT + 'references/GRCm39.fa',
-#         vcf=OUTPUT + 'vcf/{sid}.vcf.gz',
-#         vcfindex=OUTPUT + 'vcf/{sid}.vcf.gz.tbi',
-#     output:
-#         OUTPUT + 'references/GRCm39masked.fa'    
-#     wildcard_constraints:
-#         sid='|'.join([re.escape(x) for x in set(snp_ids)]),
-#     shell:
-#         """bedtools maskfasta -fi {input.ref} \
-#         -bed {input.vcf} \
-#         -fo {output}
-#         """
-# 
-# ref_ids.append("GRCm39masked")

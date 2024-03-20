@@ -73,12 +73,13 @@ rule all:
     input:
         expand(f"{OUTPUT}gtf/{{gid}}.gtf.gz", gid=gtf_ids),
         expand(f"{OUTPUT}references/{{rid}}.mmi", rid=ref_ids),
+        expand(f"{OUTPUT}references/{{rid}}.chrom.sizes", rid=ref_ids),    
         expand(f"{OUTPUT}fastq/{{cid}}.raw.fastq", cid=cell_ids),
-        expand(f"{OUTPUT}fastq/{{cid}}.digested.fastq", cid=cell_ids),
-        # expand(f"{OUTPUT}reports/chromsizes/{{rid}}.chrom.sizes", rid=ref_ids),        
+        expand(f"{OUTPUT}digest/{{cid}}.digested.fastq", cid=cell_ids),
+        OUTPUT + "reports/seqkit/raw.fastq.report.txt",
+        OUTPUT + "reports/seqkit/digested.fastq.report.txt",
+
         # expand(f"{OUTPUT}minimap2/{{cid}}.{{rid}}.{{cond}}.bam", cid=cell_ids, rid=ref_ids, cond=['raw', 'digested']),
-        # expand(f"{OUTPUT}reports/seqkit/{{cond}}.fastq.report.txt", cond=['raw', 'digested']),
-        # expand(f"{OUTPUT}reports/fastqc/{{cid}}.raw_fastqc.html", cid=cell_ids),
         # expand(f"{OUTPUT}reports/coverage/{{cid}}.{{rid}}.{{dig}}.txt", cid=cell_ids, rid=ref_ids, dig=['raw', 'digested']),
         # expand(f"{OUTPUT}reports/flagstat/{{cid}}.{{rid}}.{{dig}}.tsv", cid=cell_ids, rid=ref_ids, dig=['raw', 'digested']),
         # expand(f"{OUTPUT}reports/stats/{{cid}}.{{rid}}.{{dig}}.txt", cid=cell_ids, rid=ref_ids, dig=['raw', 'digested']),
