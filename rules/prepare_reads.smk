@@ -67,7 +67,32 @@ rule get_barcode_fasta:
         OUTPUT + "resources/barcodes.fasta"
     shell:
         """python scripts/barcode_fasta.py {input} {output}"""
-    
+
+
+rule get_read_lengths:
+    input:
+        fastq=OUTPUT + "fastq/{cid}.raw.fastq",
+    output:
+        OUTPUT + "read_lengths/{cid}.read_lengths.parquet",
+    wildcard_constraints:
+        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
+    shell:
+        """python scripts/get_read_lengths.py {input} {output}"""
+
+
+rule get_restriction_counts:
+    input:
+        fastq=OUTPUT + "fastq/{cid}.raw.fastq",
+    output:
+        OUTPUT + "restriction_counts/{cid}.restriction_counts.parquet",
+    wildcard_constraints:
+        cid='|'.join([re.escape(x) for x in set(cell_ids)]),
+    params:
+        cutter=config['enzyme'],
+    shell:
+        """python scripts/get_restriction_count.py {input} {params.cutter} {output}"""
+
+
 
 # rule locate_barcodes:
 #     input:
@@ -102,25 +127,3 @@ rule get_barcode_fasta:
 # 
 # 
 # 
-# rule get_read_lengths:
-#     input:
-#         fastq=OUTPUT + "fastq/{cid}.raw.fastq",
-#     output:
-#         OUTPUT + "read_stats/{cid}.read_lengths.parquet",
-#     wildcard_constraints:
-#         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-#     shell:
-#         """python scripts/get_read_lengths.py {input} {output}"""
-# 
-# 
-# rule get_restriction_counts:
-#     input:
-#         fastq=OUTPUT + "fastq/{cid}.raw.fastq",
-#     output:
-#         OUTPUT + "read_stats/{cid}.restriction_counts.parquet",
-#     wildcard_constraints:
-#         cid='|'.join([re.escape(x) for x in set(cell_ids)]),
-#     params:
-#         cutter=config['enzyme'],
-#     shell:
-#         """python scripts/get_restriction_count.py {input} {params.cutter} {output}"""

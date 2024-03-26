@@ -64,8 +64,6 @@ print(tabulate(gtf_df[['gtf_id', 'basename']],
 include: "rules/prepare_reads.smk"
 include: "rules/references.smk"
 include: "rules/mapping.smk"
-include: "rules/epi2me.smk"
-include: "rules/haplotyping.smk"
 
   
 ################ ALL RULES ################
@@ -78,8 +76,11 @@ rule all:
         expand(f"{OUTPUT}digest/{{cid}}.digested.fastq", cid=cell_ids),
         OUTPUT + "reports/seqkit/raw.fastq.report.txt",
         OUTPUT + "reports/seqkit/digested.fastq.report.txt",
+        expand(f"{OUTPUT}alignments/{{cid}}.{{rid}}.raw.bam", cid=cell_ids, rid=ref_ids),
+        expand(f"{OUTPUT}alignments/{{cid}}.{{rid}}.digested.bam", cid=cell_ids, rid=ref_ids),
+        expand(f"{OUTPUT}read_lengths/{{cid}}.read_lengths.parquet", cid=cell_ids,),
+        expand(f"{OUTPUT}restriction_counts/{{cid}}.restriction_counts.parquet", cid=cell_ids,),
 
-        # expand(f"{OUTPUT}minimap2/{{cid}}.{{rid}}.{{cond}}.bam", cid=cell_ids, rid=ref_ids, cond=['raw', 'digested']),
         # expand(f"{OUTPUT}reports/coverage/{{cid}}.{{rid}}.{{dig}}.txt", cid=cell_ids, rid=ref_ids, dig=['raw', 'digested']),
         # expand(f"{OUTPUT}reports/flagstat/{{cid}}.{{rid}}.{{dig}}.tsv", cid=cell_ids, rid=ref_ids, dig=['raw', 'digested']),
         # expand(f"{OUTPUT}reports/stats/{{cid}}.{{rid}}.{{dig}}.txt", cid=cell_ids, rid=ref_ids, dig=['raw', 'digested']),
@@ -88,8 +89,6 @@ rule all:
         # expand(f"{OUTPUT}barcode_locations/{{cid}}.csv", cid=cell_ids),
         # expand(f"{OUTPUT}enzyme_locations/{{cid}}.csv", cid=cell_ids),
         # expand(f"{OUTPUT}reports/epi2me_coverage/{{cid}}.{{rid}}.txt", cid=cell_ids, rid=ref_ids),
-        # expand(f"{OUTPUT}epi2me_digest/{{cid}}.{{rid}}.bam", cid=cell_ids, rid=ref_ids),
-        # expand(f"{OUTPUT}epi2me/{{cid}}.{{rid}}.ns.bam", cid=cell_ids, rid=ref_ids),
         # expand(f"{OUTPUT}duplicates/{{cid}}.{{rid}}.{{dig}}.bam", cid=cell_ids, rid=ref_ids, dig=['raw', 'digested']),
         # expand(f"{OUTPUT}align_table/{{cid}}.{{rid}}.{{dig}}.parquet", cid=cell_ids, rid=ref_ids, dig=['raw', 'digested']),
     
